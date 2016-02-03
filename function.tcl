@@ -1,6 +1,6 @@
 # Copyright (c) Ixia technologies 2015-2016, Inc.
 
-# Release Version 1.0
+# Release Version 1.3
 #===============================================================================
 # Change made
 # Version 1.0 
@@ -625,15 +625,21 @@ puts "HOL: $HOL"
 					if {$HOL == "oneGroup"} {
 						ixNet setMultiAttribute $element/trafficMapping/map:1 \
 							-setName "Endpoint\ Set-1"\
+							-source "Ethernet\ -\ 001" \
 							-sourceId [lindex $port_handle 0] \
+							-destination "Ethernet\ -\ 003" \
 							-destinationId [lindex $port_handle 2]
 						ixNet setMultiAttribute $element/trafficMapping/map:2 \
 							-setName "Endpoint\ Set-1"\
+							-source "Ethernet\ -\ 001" \
 							-sourceId [lindex $port_handle 0] \
+							-destination "Ethernet\ -\ 004" \
 							-destinationId [lindex $port_handle 3]
 						ixNet setMultiAttribute $element/trafficMapping/map:3 \
 							-setName "Endpoint\ Set-2"\
+							-source "Ethernet\ -\ 002" \
 							-sourceId [lindex $port_handle 1] \
+							-destination "Ethernet\ -\ 004" \
 							-destinationId [lindex $port_handle 3]
 						ixNet commit
 						
@@ -672,25 +678,30 @@ puts "HOL: $HOL"
 								lappend nport_handle [list $a $b $c $d]
 							}
 						}
-puts "nport_handle:  $nport_handle"
 						set k 0
 						set j 1
 						foreach n_handle $nport_handle {
-puts "n_handle: $n_handle"
+
 							ixNet setMultiAttribute $element/trafficMapping/map:[expr $k+1] \
 								-setName "Endpoint\ Set-$j"\
+								-source "Ethernet\ -\ 00[expr $k+1]" \
 								-sourceId [lindex $n_handle 0] \
+								-destination "Ethernet\ -\ 00[expr $k+3]" \
 								-destinationId [lindex $n_handle 2]
 							ixNet commit
 							ixNet setMultiAttribute $element/trafficMapping/map:[expr $k+2] \
 								-setName "Endpoint\ Set-$j"\
+								-source "Ethernet\ -\ 00[expr $k+1]" \
 								-sourceId [lindex $n_handle 0] \
+								-destination "Ethernet\ -\ 00[expr $k+4]" \
 								-destinationId [lindex $n_handle 3]
 							ixNet commit
 							set j [expr $j+1]
 							ixNet setMultiAttribute $element/trafficMapping/map:[expr $k+3] \
 								-setName "Endpoint\ Set-[expr $j]"\
+								-source "Ethernet\ -\ 00[expr $k+2]" \
 								-sourceId [lindex $n_handle 1] \
+								-destination "Ethernet\ -\ 00[expr $k+4]" \
 								-destinationId [lindex $n_handle 3]
 							ixNet commit
 							set j [expr $j+1]
@@ -1185,43 +1196,89 @@ puts "args:$args"
             -fs64_enable {
                 if { $value == 1 } {
                     #lappend frame_size 64
-					set frame_size "${frame_size}64,"
+					#set frame_size "${frame_size}64,"
+					if { $frame_size == ""} {
+					    set frame_size "64"
+					} else {
+					    set frame_size "${frame_size},64"
+					}
                 }
             }
             -fs128_enable {
                 if { $value == 1 } {
                     #lappend frame_size 128
-					set frame_size "${frame_size}128,"
+					#set frame_size "${frame_size}128,"
+					if { $frame_size == ""} {
+					    set frame_size "128"
+					} else {
+					    set frame_size "${frame_size},128"
+					}
                 }
             }
             -fs256_enable {
                 if { $value == 1 } {
                     #lappend frame_size 256
-					set frame_size "${frame_size}256,"
+					#set frame_size "${frame_size}256,"
+					if { $frame_size == ""} {
+					    set frame_size "256"
+					} else {
+					    set frame_size "${frame_size},256"
+					}
                 }
             }
             -fs512_enable {
                 if { $value == 1 } {
                     #lappend frame_size 512
-					set frame_size "${frame_size}512,"
+					#set frame_size "${frame_size}512,"
+					if { $frame_size == ""} {
+					    set frame_size "512"
+					} else {
+					    set frame_size "${frame_size},512"
+					}
+                }
+            }
+			-fs590_enable {
+                if { $value == 1 } {
+                    #lappend frame_size 590
+					#set frame_size "${frame_size}590,"
+					if { $frame_size == ""} {
+					    set frame_size "590"
+					} else {
+					    set frame_size "${frame_size},590"
+					}
                 }
             }
             -fs1024_enable {
                 if { $value == 1 } {
                     #lappend frame_size 1024
-					set frame_size "${frame_size}1024,"
+					#set frame_size "${frame_size}1024,"
+					if { $frame_size == ""} {
+					    set frame_size "1024"
+					} else {
+					    set frame_size "${frame_size},1024"
+					}
                 }
             }
             -fs1280_enable {
                 if { $value == 1 } {
                     #lappend frame_size 1280
-					set frame_size "${frame_size}1280,"
+					#set frame_size "${frame_size}1280,"
+					if { $frame_size == ""} {
+					    set frame_size "1280"
+					} else {
+					    set frame_size "${frame_size},1280"
+					}
                 }
             }
             -fs1518_enable {
                 if { $value == 1 } {
                     #lappend frame_size 1518
-					set frame_size "${frame_size}1518,"
+					#set frame_size "${frame_size}1518,"
+					if { $frame_size == ""} {
+					    set frame_size "1518"
+					} else {
+					    set frame_size "${frame_size},1518"
+					}
                 }
             }
             -fs_jumbo_enable {
@@ -1252,7 +1309,7 @@ puts "args:$args"
                set 1g_enable $value
             }
             -media {
-               set media $value
+               set media [string tolower $value]
             }
             -autoneg {
                set autoneg $value
@@ -1274,7 +1331,12 @@ puts "args:$args"
 
     if {$fs_jumbo_enable } {
         #lappend frame_size $jumbo_value
-        set frame_size "${frame_size}${jumbo_value},"		
+        #set frame_size "${frame_size}${jumbo_value},"	
+        if { $frame_size == ""} {
+			set frame_size "${jumbo_value}"
+		} else {
+			set frame_size "${frame_size},${jumbo_value}"
+		}		
     }    
 	puts "Reserve real port $port_list"
     set port_handle [QTP_PortListSet  -port_list $port_list]
