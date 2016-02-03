@@ -9,15 +9,21 @@
 
 set flag 0
 set mac 00:d0:b0:11:01:00
-package req Expect
-package req IxTclNetwork
-package req IxTclHal
-
-#Support multi chassises
+set currDir [file dirname [info script]]
+set tDir [file dirname $currDir]
+set timeVal  [ clock format [ clock seconds ] -format %Y%m%d%H%M%S]
+set resPath "$tDir/Tcl/Results/$timeVal"
+puts "result path:$resPath"
+file mkdir $resPath
+set resfilepath "$resPath/QTP.log"
+set resfile [open $resfilepath a+]
+close $resfile
 	
 proc GetRealPort { port_list } {
 	set result ""
+
 	foreach value $port_list {
+puts "value:$value"	
 		regexp {(.*):(.*):(.*)} $value np chassis card port
 		puts "chassis : $chassis; card : $card; port : $port"
 				
@@ -33,7 +39,8 @@ proc GetRealPort { port_list } {
             foreach chas $chasList {
 			    set hostname [ixNet getA $chas -hostname]
                 if {$hostname == $chassis} {
-                    set findChas 1               
+                    set findChas 1    
+					break
                 }
             }
 			if { $findChas == 0 } {
@@ -44,13 +51,17 @@ proc GetRealPort { port_list } {
 			}                           
            
 		}
+	
 		set chassis $chas
+puts "chas:$chas"		
 		set realCard $chassis/card:$card
 		set cardList [ixNet getL $chassis card]
 		set findCard 0
+puts "card list :$cardList"		
 		foreach ca $cardList {
 			eval set ca $ca
 			eval set realCard $realCard
+puts "ca:$ca realCard:$realCard"			
 			if {$ca == $realCard} {
 				set findCard 1
 				break
@@ -70,6 +81,7 @@ proc GetRealPort { port_list } {
 				break
 			}
 		}
+
 		if {$findPort} {
 			ixNet exec clearOwnership $chassis/card:$card/port:$port
 			lappend result $chassis/card:$card/port:$port
@@ -264,6 +276,7 @@ proc QTP_ChasInfo { chassis } {
 }
 
 proc QTP_PortListSet {args} {
+puts "|QTP_PortListSet|"
 	global flag
 	#set variables
 	foreach {key value} $args {
@@ -273,25 +286,27 @@ proc QTP_PortListSet {args} {
 			}
 		}
 	}
+	
+	set root [ixNet getRoot]
 	#check real ports
+puts "port_list:$port_list"	
 	set newport_list [GetRealPort $port_list]
+puts "newport_list:$newport_list"	
 	if {$newport_list == [ixNet getNull] } {
 		puts "The real card is not exist!"
 		puts "NAK"
 	} else {
-	#add and connect vports to real ports, if already done before(by flag),return the handle list of the vports.
-		if {flag == 0} {
-			foreach value $newport_list {
-				set root [ixNet getRoot]
-				set hdle [ixNet add $root vport]
-				ixNet commit
-				set real_hdle [ixNet remapIds $hdle]
-				ixNet setA $real_hdle -connectedTo $value
-				ixNet commit
-			}
-			set flag 1
-		} 
-        
+
+		foreach value $newport_list {
+			set hdle [ixNet add $root vport]
+			ixNet commit
+			set real_hdle [ixNet remapIds $hdle]
+			ixNet setA $real_hdle -connectedTo $value
+			ixNet commit
+			ixNet setA $real_hdle/l1Config/[ixNet getA $real_hdle -type] -enabledFlowControl False
+			ixNet commit
+		}
+
         set vport_list [ixNet getL $root vport]
         return $vport_list
 		
@@ -381,15 +396,17 @@ proc QTP_EndPointSet {args} {
 	# } else {
 		# set interface [AddProtocol $protocol]
 	# }
-puts 1	
+#puts 1	
 	set interface ""
 	set lan [AddProtocol MAC]
+puts "lan: $lan"
 	if {$protocol != "MAC"} {
 		set interface [AddProtocol $protocol]
 	}
 	
 	#get vport handle list
-	set port_handle [ixNet getL $root vport]	
+	set port_handle [ixNet getL $root vport]
+puts "port_handle: $port_handle"	
 	foreach element $testlist {
 		
 		#set portList
@@ -405,7 +422,7 @@ puts 1
 				-chainTopology Daisy
 			ixNet commit
 		}
-	
+#puts 2	
 		#set traffic mode, if needed,and endpoint set(rfc2544 need, rfc2889 don't)
 		if { [regexp {.*(rfc2544)+.+} $element]} {	
 			
@@ -416,7 +433,7 @@ puts 1
 				ixNet setA $test_cfg -protocolItem $interface
 			}
 			ixNet commit
-			
+#puts 3			
 			switch $latency_type {
 				CutThrough {
 					set latency_type cutThrough
@@ -425,17 +442,18 @@ puts 1
 					set latency_type storeForward
 				}
 			}
+puts "latency: $latency_type"
 			if {[regexp {.*throughput+.+} $element]} {
 				ixNet setA $test_cfg -latencyType $latency_type
 				ixNet commit
 			}
-			
+#puts 4			
 			ixNet setA $element/frameData -trafficType $pro
 			ixNet commit
 			#set trafficMapping and trafficItem		
+			set port_num [llength $port_handle]
 			if {$tra_mode == "pair"} {
-				if { [expr $port_num % 2] == 0} {
-					set port_num [llength $port_handle]
+				if { [expr $port_num % 2] == 0} {					
 					set root [ixNet getRoot]
 					set tra [ixNet add $root/traffic trafficItem]
 					ixNet setA $tra -name "QT-$element"
@@ -446,7 +464,7 @@ puts 1
 					set tra_selection [ixNet add $element trafficSelection]
 					ixNet setA $tra_selection -id $traffic
 					ixNet commit
-
+#puts 5
 					#set endpoint and light map in pair mode
 					foreach vport $port_handle {
 						ixNet setA $element/trafficMapping -usesLightMaps true
@@ -497,10 +515,9 @@ puts 1
 				}
 			}
 			
-
+#puts 6
 			if {$tra_mode == "round"} {
 
-				set port_num [llength $port_handle]
 				set root [ixNet getRoot]
 				set tra [ixNet add $root/traffic trafficItem]
 				ixNet setA $tra -name "QT-$element"
@@ -554,7 +571,7 @@ puts 1
 					}
 				}
 			}
-			eval "TrafficSet -element $element $args"
+			eval "QTP_TrafficSet -element $element $args"
 			
 		} else {
 			set port_num [llength $port_handle]
@@ -596,10 +613,11 @@ puts 1
 					set tra_selection [ixNet add $element trafficSelection]
 					ixNet setA $tra_selection -id $traffic
 					ixNet commit
+					eval "QTP_TrafficSet -element $element $args"
 				}
 				.*rfc2889congestionControl.* {
 					set traffic [AddTrafficItem $element $pro $lan $interface ]
-puts 1					
+#puts 1					
 					#set endpoint mode
 					ixNet setA $element/trafficMapping -mesh oneToMany
 					ixNet commit
@@ -676,7 +694,7 @@ puts "n_handle: $n_handle"
 								-destinationId [lindex $n_handle 3]
 							ixNet commit
 							set j [expr $j+1]
-puts 111							
+#puts 111							
 							if {$protocol == "MAC"} {						
 								set edp1 [ixNet add $traffic endpointSet]
 								ixNet commit
@@ -691,7 +709,7 @@ puts 111
 								ixNet setA $edp2 -destinations [lindex $lan [expr $k+3]]
 								ixNet commit
 							} else {
-puts 222
+#puts 222
 								set edp1 [ixNet add $traffic endpointSet]
 								ixNet commit
 								set edp1 [ixNet remapIds $edp1]
@@ -709,10 +727,10 @@ puts 222
 						}
 					}
 					set tra_selection [ixNet add $element trafficSelection]
-puts 333
+#puts 333
 					ixNet setA $tra_selection -id $traffic
 					ixNet commit
-					eval "TrafficSet -element $element $args"
+					eval "QTP_TrafficSet -element $element $args"
 			    }
 				.*rfc2889fullyMeshed.* {
 					set traffic [AddTrafficItem $element $pro $lan $interface]
@@ -748,7 +766,7 @@ puts 333
 					set tra_selection [ixNet add $element trafficSelection]
 					ixNet setA $tra_selection -id $traffic
 					ixNet commit
-					eval "TrafficSet -element $element $args"
+					eval "QTP_TrafficSet -element $element $args"
 				}
 				.*rfc2889partiallyMeshed.* {
 					set traffic [AddTrafficItem $element $pro $lan $interface]
@@ -795,7 +813,7 @@ puts 333
 					set tra_selection [ixNet add $element trafficSelection]
 					ixNet setA $tra_selection -id $traffic
 					ixNet commit
-					eval "TrafficSet -element $element $args"
+					eval "QTP_TrafficSet -element $element $args"
 				}
 				.*rfc2889manyToOne.* {
 					set traffic [AddTrafficItem $element $pro $lan $interface]
@@ -838,7 +856,7 @@ puts 333
 					set tra_selection [ixNet add $element trafficSelection]
 					ixNet setA $tra_selection -id $traffic
 					ixNet commit
-					eval "TrafficSet -element $element $args"
+					eval "QTP_TrafficSet -element $element $args"
 				}
 				.*rfc2889oneToMany.* {
 					set traffic [AddTrafficItem $element $pro $lan $interface]
@@ -881,7 +899,7 @@ puts 333
 					set tra_selection [ixNet add $element trafficSelection]
 					ixNet setA $tra_selection -id $traffic
 					ixNet commit
-					eval "TrafficSet -element $element $args"
+					eval "QTP_TrafficSet -element $element $args"
 				}
 			}
 		}
@@ -890,6 +908,9 @@ puts 333
 	
 
 proc QTP_TrafficSet {args} {
+	set addr_count 1
+	set lng_rate 100
+	set test_duration 10
 	foreach {key value} $args {
 		switch -exact $key {
 			-element {
@@ -910,7 +931,7 @@ proc QTP_TrafficSet {args} {
 			-gw_addr_step {
 				set gw_addr_step $value
 			}
-			-pfx_length {
+			-pfx_len {
 				set pfx_length $value
 			}
 			-addr_count {
@@ -919,6 +940,7 @@ proc QTP_TrafficSet {args} {
 			-frame_size {
 				set frame_size $value
 			}
+			-lnl_rate -
 			-lng_rate {
 				set lng_rate $value
 			}
@@ -928,43 +950,61 @@ proc QTP_TrafficSet {args} {
 			-lng_mac_only {
 				set lng_mac_only $value
 			}
+			-port_step {
+				set port_step $value
+			}
+			-test_duration {
+				set test_duration $value
+			}
 		}
 	}
 	#framedata set
-	set f_handle [ixNet getL $element frameData]
-	if {$protocol == "IPv4"} {
-		set f_handle [ixNet getL $f_handle automaticIp]
-		ixNet setMultiAttribute $f_handle/ip \
-			-firstSrcIpAddr $ip_addr_start \
-			-addrIncrementAcrossInterface $ip_addr_step \
-			-firstGwIpAddr $gw_addr_start \
-			-gwAddrIncr $gw_addr_step \
-			-mask $pfx_length \
-			-addrIncrement $port_step
-		ixNet commit
-	} elseif {$protocol == "IPv6"} {
-		set f_handle [ixNet getL $f_handle automaticIpv6]
-		ixNet setMultiAttribute $handle/ipv6 \
-			-firstSrcIpAddr $ip_addr_start \
-			-addrIncrementAcrossInterface $ip_addr_step \
-			-firstGwIpAddr $gw_addr_start \
-			-gwAddrIncr $gw_addr_step \
-			-mask $pfx_length \
-			-addrIncrement $port_step
-		ixNet commit
-	}
-	if {$addr_count != 1} {
-		ixNet setMultiAttribute $f_handle/addrCount \
-			-enableRx true \
-			-enableSameTx true \
-			-rx $addr_count
+	if {[regexp {.*rfc2889broadcastRate.*} $element] == 0} {
+		set f_handle [ixNet getL $element frameData]
+		if {$protocol == "IPv4"} {
+			set f_handle [ixNet getL $f_handle automaticIp]
+			ixNet setMultiAttribute $f_handle/ip \
+				-firstSrcIpAddr $ip_addr_start \
+				-addrIncrementAcrossInterface $ip_addr_step \
+				-firstGwIpAddr $gw_addr_start \
+				-gwAddrIncr $gw_addr_step \
+				-mask $pfx_length \
+				-addrIncrement $port_step
+			ixNet commit
+		} elseif {$protocol == "IPv6"} {
+			set f_handle [ixNet getL $f_handle automaticIpv6]
+			ixNet setMultiAttribute $handle/ipv6 \
+				-firstSrcIpAddr $ip_addr_start \
+				-addrIncrementAcrossInterface $ip_addr_step \
+				-firstGwIpAddr $gw_addr_start \
+				-gwAddrIncr $gw_addr_step \
+				-mask $pfx_length \
+				-addrIncrement $port_step
+			ixNet commit
+		}
+		if {$addr_count != 1} {
+			ixNet setMultiAttribute $f_handle/addrCount \
+				-enableRx true \
+				-enableSameTx true \
+				-rx $addr_count
+			ixNet commit
+		}
 	}
 	#traffic options
 	set t_handle [ixNet getL $element testConfig]
 	ixNet setMultiAttribute $t_handle \
 		-frameSizeMode custom \
-		-framesizeList $frame_size 
+		-framesizeList $frame_size \
+		-duration $test_duration
 	ixNet commit
+	if {[regexp {.*rfc2889congestionControl.*} $t_handle]} {
+		ixNet setA $t_handle -amountOfTraffic duration
+		ixNet commit
+	}
+	if {[regexp {.*rfc2544frameLoss.*} $t_handle]} {
+		ixNet setA $t_handle -runmode duration
+		ixNet commit
+	}
 	
 	switch $lng_mac_only {
 		1 {
@@ -975,7 +1015,7 @@ proc QTP_TrafficSet {args} {
 		}
 	}
 	set l_handle [ixNet getL $element learnFrames]
-	ixNet setMultiAttribute $l_handle
+	ixNet setMultiAttribute $l_handle \
 		-learnFrequency $lng_rate \
 		-learnNumFrames $lng_frames \
 		-learnSendMacOnly $lng_mac_only
@@ -986,23 +1026,58 @@ proc QTP_TrafficSet {args} {
 
 
 proc QTP_GetResult {qtHandle} {
-    puts "get results of the quick test"
-	set path [ixNet getA $qtHandle/results -resultPath]
-	puts "path: $path"
-	set rfile [open $path/aggregateresults.csv r]
-	set rpattern [read -nonewline $rfile]
-	close $rfile
-	puts $rpattern
+    global resfilepath
+	global resPath
+	if { [ catch {
+	    puts "Apply QTtest"
+		ixNet exec apply $qtHandle
+		after 1000
+		puts "Running Test"
+		ixNet exec run $qtHandle
+		after 2000
+		ixNet exec waitForTest $qtHandle
+		after 3000
+		puts "Get results of the quick test"
+		set path [ixNet getA $qtHandle/results -resultPath]
+		puts "Initialpath: $path"
+		set rfile [open $path/aggregateresults.csv r]
+		set rpattern [read -nonewline $rfile]
+		close $rfile
+		puts $rpattern
+		
+		set temp [lindex [ split $qtHandle / ] end ]
+		set qtname [lindex [ split $temp : ] 0 ]
+		set newResPath "${resPath}/${qtname}"
+		puts "Resultpath: $newResPath"
+		
+		set  resfile [ open $resfilepath a+ ]
+		puts $resfile "$qtname Test Restuls:"
+		puts $resfile $rpattern
+		flush $resfile
+		close $resfile
+	} err ]} {
+	    puts "error:$err"
+	}
 	
 	
-	
+	if { [ catch {
+	    file copy -force $path $newResPath
+	} err ]} {
+	    puts "Copy $qtHandle result error: $err"
+	}
+			
 }
 	
-	
-
 proc StartQT { args } {
     set quicktest ""
     set frame_size ""
+	set lng_rate 100
+	set frames_per_addr 5
+	set test_duration 10
+	global resPath
+	ixNet exec newConfig
+	after 10000
+puts "args:$args"	
     foreach {key value} $args {
 		switch -exact $key {
 			-port_list {
@@ -1040,7 +1115,7 @@ proc StartQT { args } {
             }
             -2889_many2one_enable {
                 if { $value == 1 } {
-                    lappend quicktest rfc2889manyToOnek 
+                    lappend quicktest rfc2889manyToOne
                 }
             }
             -2889_one2many_enable {
@@ -1050,7 +1125,7 @@ proc StartQT { args } {
             }
             -2889_broadcast_enable {
                 if { $value == 1 } {
-                    lappend quicktest rfc2544back2back 
+                    lappend quicktest rfc2889broadcastRate 
                 }
             }
             -2889_backbone_enable {
@@ -1066,7 +1141,7 @@ proc StartQT { args } {
             }
             -pair_enable {
                 if { $value == 1 } {
-                    set tra_mode "PAIR" 
+                    set tra_mode "pair"
                 }           
             }
             -round_enable {
@@ -1109,37 +1184,44 @@ proc StartQT { args } {
             }
             -fs64_enable {
                 if { $value == 1 } {
-                    lappend frame_size 64
+                    #lappend frame_size 64
+					set frame_size "${frame_size}64,"
                 }
             }
             -fs128_enable {
                 if { $value == 1 } {
-                    lappend frame_size 128
+                    #lappend frame_size 128
+					set frame_size "${frame_size}128,"
                 }
             }
             -fs256_enable {
                 if { $value == 1 } {
-                    lappend frame_size 256
+                    #lappend frame_size 256
+					set frame_size "${frame_size}256,"
                 }
             }
             -fs512_enable {
                 if { $value == 1 } {
-                    lappend frame_size 512
+                    #lappend frame_size 512
+					set frame_size "${frame_size}512,"
                 }
             }
             -fs1024_enable {
                 if { $value == 1 } {
-                    lappend frame_size 1024
+                    #lappend frame_size 1024
+					set frame_size "${frame_size}1024,"
                 }
             }
             -fs1280_enable {
                 if { $value == 1 } {
-                    lappend frame_size 1280
+                    #lappend frame_size 1280
+					set frame_size "${frame_size}1280,"
                 }
             }
             -fs1518_enable {
                 if { $value == 1 } {
-                    lappend frame_size 1518
+                    #lappend frame_size 1518
+					set frame_size "${frame_size}1518,"
                 }
             }
             -fs_jumbo_enable {
@@ -1151,7 +1233,7 @@ proc StartQT { args } {
             -test_duration {
                 set test_duration $value
             }
-            -lnl_rate {
+            -lng_rate {
                 set lng_rate $value
             }
             -frames_per_addr {
@@ -1191,7 +1273,8 @@ proc StartQT { args } {
     }
 
     if {$fs_jumbo_enable } {
-        lappend frame_size $jumbo_value 
+        #lappend frame_size $jumbo_value
+        set frame_size "${frame_size}${jumbo_value},"		
     }    
 	puts "Reserve real port $port_list"
     set port_handle [QTP_PortListSet  -port_list $port_list]
@@ -1216,7 +1299,7 @@ proc StartQT { args } {
                     -gw_addr_step $gw_addr_step  -pfx_len $pfx_len -port_step $port_step \
 					-frame_size $frame_size -lng_rate $lng_rate \
                     -lng_frames $frames_per_addr -lng_mac_only $send_mac_only_enable \
-                    -test_duration test_duration
+                    -test_duration $test_duration -latency_type $latency_type
                      
     puts "Run quicktest in each speed"
     if {$10m_enable} {
@@ -1245,12 +1328,7 @@ proc StartQT { args } {
         
         foreach {key handle} [array get QTobj] {
             puts "10M speed, $autoneg ,media: $media Run quickTest:$key"
-            ixNet exec apply $handle
-            #after 1000
-            ixNet exec run $handle
-            after 2000
-			ixNet exec waitForTest $handle
-			after 3000
+
 			QTP_GetResult $handle
         }
         
@@ -1281,12 +1359,7 @@ proc StartQT { args } {
         
         foreach {key handle} [array get QTobj] {
             puts "100M speed, $autoneg ,media: $media Run quickTest:$key"
-            ixNet exec apply $handle
-            #after 1000
-            ixNet exec run $handle
-            after 2000
-			ixNet exec waitForTest $handle
-			after 3000
+
 			QTP_GetResult $handle
         }
     }
@@ -1316,12 +1389,7 @@ proc StartQT { args } {
         
         foreach {key handle} [array get QTobj] {
             puts "1g speed, $autoneg ,media: $media Run quickTest:$key"
-            #ixNet exec apply $handle
-            #after 1000
-            ixNet exec run $handle
-            after 2000
-			ixNet exec waitForTest $handle
-			after 3000
+
 			QTP_GetResult $handle
         }
     }
@@ -1335,13 +1403,7 @@ proc StartQT { args } {
         
         foreach {key handle} [array get QTobj] {
             puts "10g speed, $autoneg ,media: $media Run quickTest:$key"
-            #ixNet exec apply $handle
-            ixNet exec apply $handle
-            #after 1000
-            ixNet exec run $handle
-            after 2000
-			ixNet exec waitForTest $handle
-			after 3000
+
 			QTP_GetResult $handle
         }
     }
@@ -1359,12 +1421,6 @@ proc StartQT { args } {
         foreach {key handle} [array get QTobj] {
             puts "40g speed, $autoneg ,media: $media Run quickTest:$key"
            
-            ixNet exec apply $handle
-            #after 1000
-            ixNet exec run $handle
-            after 2000
-			ixNet exec waitForTest $handle
-			after 3000
 			QTP_GetResult $handle
         }
     }
@@ -1378,12 +1434,7 @@ proc StartQT { args } {
         
         foreach {key handle} [array get QTobj] {
             puts "100g speed, $autoneg ,media: $media Run quickTest:$key"
-            ixNet exec apply $handle
-            #after 1000
-            ixNet exec run $handle
-            after 2000
-			ixNet exec waitForTest $handle
-			after 3000
+
 			QTP_GetResult $handle
         }
     }
