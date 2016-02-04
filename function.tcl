@@ -1,6 +1,6 @@
 # Copyright (c) Ixia technologies 2015-2016, Inc.
 
-# Release Version 1.3
+# Release Version 1.4
 #===============================================================================
 # Change made
 # Version 1.0 
@@ -276,8 +276,7 @@ proc QTP_ChasInfo { chassis } {
 }
 
 proc QTP_PortListSet {args} {
-puts "|QTP_PortListSet|"
-	global flag
+	puts "|QTP_PortListSet|"
 	#set variables
 	foreach {key value} $args {
 		switch -exact $key {
@@ -302,6 +301,7 @@ puts "newport_list:$newport_list"
 			ixNet commit
 			set real_hdle [ixNet remapIds $hdle]
 			ixNet setA $real_hdle -connectedTo $value
+			ixNet setA $real_hdle -name [lindex $port_list [lsearch $newport_list $value]]
 			ixNet commit
 			ixNet setA $real_hdle/l1Config/[ixNet getA $real_hdle -type] -enabledFlowControl False
 			ixNet commit
@@ -316,6 +316,7 @@ puts "newport_list:$newport_list"
 
 		
 proc QTP_NewQTobj {args} {
+	puts "|QTP_NewQTobj|"
 	foreach {key value} $args {
 		switch -exact $key {
 			-quicktest {
@@ -1036,7 +1037,7 @@ proc QTP_TrafficSet {args} {
 }
 
 
-proc QTP_GetResult {qtHandle} {
+proc QTP_GetResult {qtHandle speed} {
     global resfilepath
 	global resPath
 	if { [ catch {
@@ -1058,7 +1059,7 @@ proc QTP_GetResult {qtHandle} {
 		
 		set temp [lindex [ split $qtHandle / ] end ]
 		set qtname [lindex [ split $temp : ] 0 ]
-		set newResPath "${resPath}/${qtname}"
+		set newResPath "${resPath}/${qtname}_${speed}"
 		puts "Resultpath: $newResPath"
 		
 		set  resfile [ open $resfilepath a+ ]
@@ -1391,7 +1392,7 @@ puts "args:$args"
         foreach {key handle} [array get QTobj] {
             puts "10M speed, $autoneg ,media: $media Run quickTest:$key"
 
-			QTP_GetResult $handle
+			QTP_GetResult $handle "10m"
         }
         
     }
@@ -1422,7 +1423,7 @@ puts "args:$args"
         foreach {key handle} [array get QTobj] {
             puts "100M speed, $autoneg ,media: $media Run quickTest:$key"
 
-			QTP_GetResult $handle
+			QTP_GetResult $handle "100m"
         }
     }
     if {$1g_enable} {
@@ -1452,11 +1453,11 @@ puts "args:$args"
         foreach {key handle} [array get QTobj] {
             puts "1g speed, $autoneg ,media: $media Run quickTest:$key"
 
-			QTP_GetResult $handle
+			QTP_GetResult $handle "1g"
         }
     }
     if {$10g_enable} {
-         puts "1g $autoneg $media config"
+         puts "10g  config"
         set ix_type tenGigLan
         foreach pHandle $port_handle {        
             ixNet setA $pHandle -type $ix_type
@@ -1464,16 +1465,22 @@ puts "args:$args"
         }
         
         foreach {key handle} [array get QTobj] {
-            puts "10g speed, $autoneg ,media: $media Run quickTest:$key"
+            puts "10g speed Run quickTest:$key"
 
-			QTP_GetResult $handle
+			QTP_GetResult $handle "10g"
         }
     }
     if {$25g_enable} {
+	
+	    foreach {key handle} [array get QTobj] {
+            puts "25g speed Run quickTest:$key"
+           
+			QTP_GetResult $handle "25g"
+        }
         
     }
     if {$40g_enable} {
-         puts "40g $autoneg $media config"
+        puts "40g config"
         set ix_type fortyGigLan
         foreach pHandle $port_handle {        
             ixNet setA $pHandle -type $ix_type
@@ -1481,13 +1488,13 @@ puts "args:$args"
         }
         
         foreach {key handle} [array get QTobj] {
-            puts "40g speed, $autoneg ,media: $media Run quickTest:$key"
+            puts "40g speed Run quickTest:$key"
            
-			QTP_GetResult $handle
+			QTP_GetResult $handle "40g"
         }
     }
     if {$100g_enable} {
-         puts "100g $autoneg $media config"
+         puts "100g  config"
         set ix_type hundredGigLan
         foreach pHandle $port_handle {        
             ixNet setA $pHandle -type $ix_type
@@ -1495,9 +1502,9 @@ puts "args:$args"
         }
         
         foreach {key handle} [array get QTobj] {
-            puts "100g speed, $autoneg ,media: $media Run quickTest:$key"
+            puts "100g speed, Run quickTest:$key"
 
-			QTP_GetResult $handle
+			QTP_GetResult $handle "100g"
         }
     }
 }
