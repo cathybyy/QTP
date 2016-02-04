@@ -745,6 +745,7 @@ puts "HOL: $HOL"
 					eval "QTP_TrafficSet -element $element $args"
 			    }
 				.*rfc2889fullyMeshed.* {
+puts "run:2889fullymeshed"
 					set traffic [AddTrafficItem $element $pro $lan $interface]
 
 					#set endpoint mode
@@ -756,6 +757,7 @@ puts "HOL: $HOL"
 					set light_map [ixNet remapIds $light_map]
 					set edp [ixNet add $traffic endpointSet]
 					ixNet commit
+puts 12
 					set edp [ixNet remapIds $edp]
 					set src ""
 					set dst ""
@@ -770,14 +772,16 @@ puts "HOL: $HOL"
 						ixNet setA $light_map/source:[expr [lsearch $port_handle $p]+1] -portId $p
 						ixNet commit
 					}
-					
-					ixNet setMultiAttribute $edp \
-						-sources $src \
-						-destinations $dst
-					ixNet commit
+				
+					#ixNet setMultiAttribute $edp \
+					#	-sources $src \
+					#	-destinations $dst
+					#ixNet commit
+
 					set tra_selection [ixNet add $element trafficSelection]
 					ixNet setA $tra_selection -id $traffic
 					ixNet commit
+
 					eval "QTP_TrafficSet -element $element $args"
 				}
 				.*rfc2889partiallyMeshed.* {
@@ -1434,19 +1438,24 @@ puts "args:$args"
             ixNet commit
             ixNet setA $pHandle/l1Config/ethernet -media $media
             ixNet commit
-            if { $autoneg == "Auto" } {
+			if { $autoneg == "Auto" } {
                 ixNet setA $pHandle/l1Config/ethernet -autoNegotiate True
                 ixNet setA $pHandle/l1Config/ethernet -speedAuto auto
                 ixNet commit
-            } elseif { $autoneg == "Half" } {
-                ixNet setA $pHandle/l1Config/ethernet -autoNegotiate False
-                ixNet setA $pHandle/l1Config/ethernet -speed speed1000
-                ixNet commit
-            } elseif { $autoneg == "Full" } {
-                ixNet setA $pHandle/l1Config/ethernet -autoNegotiate False
-                ixNet setA $pHandle/l1Config/ethernet -speed speed1000
-                ixNet commit
             }
+            # if { $autoneg == "Auto" } {
+                # ixNet setA $pHandle/l1Config/ethernet -autoNegotiate True
+                # ixNet setA $pHandle/l1Config/ethernet -speedAuto auto
+                # ixNet commit
+            # } elseif { $autoneg == "Half" } {
+                # ixNet setA $pHandle/l1Config/ethernet -autoNegotiate False
+                # ixNet setA $pHandle/l1Config/ethernet -speed speed1000
+                # ixNet commit
+            # } elseif { $autoneg == "Full" } {
+                # ixNet setA $pHandle/l1Config/ethernet -autoNegotiate False
+                # ixNet setA $pHandle/l1Config/ethernet -speed speed1000
+                # ixNet commit
+            # }
             
         }
         
