@@ -1,6 +1,6 @@
 # Copyright (c) Ixia technologies 2015-2016, Inc.
 
-# Release Version 1.4
+# Release Version 1.3
 #===============================================================================
 # Change made
 # Version 1.0 
@@ -11,19 +11,22 @@ set flag 0
 set mac 00:d0:b0:11:01:00
 set currDir [file dirname [info script]]
 set tDir [file dirname $currDir]
-set timeVal  [ clock format [ clock seconds ] -format %Y%m%d%H%M%S]
-set resPath "$tDir/Tcl/Results/$timeVal"
-puts "result path:$resPath"
-file mkdir $resPath
-set resfilepath "$resPath/QTP.log"
-set resfile [open $resfilepath a+]
-close $resfile
+# set timeVal  [ clock format [ clock seconds ] -format %Y%m%d%H%M%S]
+# set resPath "$tDir/Tcl/Results/$timeVal"
+# puts "result path:$resPath"
+# file mkdir $resPath
+# set resfilepath "$resPath/QTP.log"
+# set resfile [open $resfilepath a+]
+# close $resfile
 	
 proc GetRealPort { port_list } {
 	set result ""
-
+set initProgress 10
+set portProgressVolume [ expr round(20 / [llength $port_list]) ]
 	foreach value $port_list {
-puts "value:$value"	
+puts "$initProgress"	
+set initProgress [expr $initProgress + $portProgressVolume ]
+# puts "value:$value"	
 		regexp {(.*):(.*):(.*)} $value np chassis card port
 		puts "chassis : $chassis; card : $card; port : $port"
 				
@@ -53,15 +56,15 @@ puts "value:$value"
 		}
 	
 		set chassis $chas
-puts "chas:$chas"		
+# puts "chas:$chas"		
 		set realCard $chassis/card:$card
 		set cardList [ixNet getL $chassis card]
 		set findCard 0
-puts "card list :$cardList"		
+# puts "card list :$cardList"		
 		foreach ca $cardList {
 			eval set ca $ca
 			eval set realCard $realCard
-puts "ca:$ca realCard:$realCard"			
+# puts "ca:$ca realCard:$realCard"			
 			if {$ca == $realCard} {
 				set findCard 1
 				break
@@ -173,7 +176,6 @@ proc AddProtocol {protocol} {
 	}
 }
 
-
 proc AddTrafficItem {element protocol lan interface} {
 	set root [ixNet getRoot]
 	
@@ -276,7 +278,8 @@ proc QTP_ChasInfo { chassis } {
 }
 
 proc QTP_PortListSet {args} {
-	puts "|QTP_PortListSet|"
+puts "|QTP_PortListSet|"
+	global flag
 	#set variables
 	foreach {key value} $args {
 		switch -exact $key {
@@ -301,7 +304,6 @@ puts "newport_list:$newport_list"
 			ixNet commit
 			set real_hdle [ixNet remapIds $hdle]
 			ixNet setA $real_hdle -connectedTo $value
-			ixNet setA $real_hdle -name [lindex $port_list [lsearch $newport_list $value]]
 			ixNet commit
 			ixNet setA $real_hdle/l1Config/[ixNet getA $real_hdle -type] -enabledFlowControl False
 			ixNet commit
@@ -313,10 +315,7 @@ puts "newport_list:$newport_list"
 	}
 }	
 
-
-		
 proc QTP_NewQTobj {args} {
-	puts "|QTP_NewQTobj|"
 	foreach {key value} $args {
 		switch -exact $key {
 			-quicktest {
@@ -745,7 +744,6 @@ puts "HOL: $HOL"
 					eval "QTP_TrafficSet -element $element $args"
 			    }
 				.*rfc2889fullyMeshed.* {
-puts "run:2889fullymeshed"
 					set traffic [AddTrafficItem $element $pro $lan $interface]
 
 					#set endpoint mode
@@ -757,7 +755,6 @@ puts "run:2889fullymeshed"
 					set light_map [ixNet remapIds $light_map]
 					set edp [ixNet add $traffic endpointSet]
 					ixNet commit
-puts 12
 					set edp [ixNet remapIds $edp]
 					set src ""
 					set dst ""
@@ -772,16 +769,14 @@ puts 12
 						ixNet setA $light_map/source:[expr [lsearch $port_handle $p]+1] -portId $p
 						ixNet commit
 					}
-				
-					#ixNet setMultiAttribute $edp \
-					#	-sources $src \
-					#	-destinations $dst
-					#ixNet commit
-
+					
+					ixNet setMultiAttribute $edp \
+						-sources $src \
+						-destinations $dst
+					ixNet commit
 					set tra_selection [ixNet add $element trafficSelection]
 					ixNet setA $tra_selection -id $traffic
 					ixNet commit
-
 					eval "QTP_TrafficSet -element $element $args"
 				}
 				.*rfc2889partiallyMeshed.* {
@@ -1041,7 +1036,7 @@ proc QTP_TrafficSet {args} {
 }
 
 
-proc QTP_GetResult {qtHandle speed} {
+proc QTP_GetResult {qtHandle} {
     global resfilepath
 	global resPath
 	if { [ catch {
@@ -1063,11 +1058,11 @@ proc QTP_GetResult {qtHandle speed} {
 		
 		set temp [lindex [ split $qtHandle / ] end ]
 		set qtname [lindex [ split $temp : ] 0 ]
-		set newResPath "${resPath}/${qtname}_${speed}"
+		set newResPath "${resPath}/${qtname}"
 		puts "Resultpath: $newResPath"
 		
 		set  resfile [ open $resfilepath a+ ]
-		puts $resfile "$speed:$qtname Test Restuls:"
+		puts $resfile "$qtname Test Restuls:"
 		puts $resfile $rpattern
 		flush $resfile
 		close $resfile
@@ -1090,9 +1085,11 @@ proc StartQT { args } {
 	set lng_rate 100
 	set frames_per_addr 5
 	set test_duration 10
-	global resPath
+	global resPath resfilepath
+puts 5
 	ixNet exec newConfig
-	after 10000
+puts 10
+	# after 10000
 puts "args:$args"	
     foreach {key value} $args {
 		switch -exact $key {
@@ -1345,7 +1342,7 @@ puts "args:$args"
     }    
 	puts "Reserve real port $port_list"
     set port_handle [QTP_PortListSet  -port_list $port_list]
-    
+puts 30    
     puts "Config quicktest list $quicktest"
     array set QTobj [QTP_NewQTobj -quicktest $quicktest]
     # puts "Quick Test EndPointsSet"
@@ -1367,8 +1364,26 @@ puts "args:$args"
 					-frame_size $frame_size -lng_rate $lng_rate \
                     -lng_frames $frames_per_addr -lng_mac_only $send_mac_only_enable \
                     -test_duration $test_duration -latency_type $latency_type
-                     
+
+	set speedProgressList [ list 10m_enable 100m_enable 1g_enable 10g_enable 25g_enable 40g_enable 100g_enable]
+	set progressCnt 0
+	foreach sp $speedProgressList {
+		if { [ set $sp ] } {
+			incr progressCnt
+		}
+	}
+	set progressVolume [ expr round(70.0 / $progressCnt) ]
+	puts "progress volume:$progressVolume"
+	set progressInit 30
+	set qtCnt [ llength [array names QTobj] ]
+	set qtProgressVolume [ expr round($progressVolume /$qtCnt)]
+	puts "qt progress volume:$qtProgressVolume"
+	
     puts "Run quicktest in each speed"
+	set resfilepath "$resPath/QTP.log"
+	set resfile [open $resfilepath a+]
+	close $resfile
+	
     if {$10m_enable} {
         puts "10m $autoneg $media config"
         set ix_type ethernet
@@ -1393,10 +1408,12 @@ puts "args:$args"
             
         }
         
-        foreach {key handle} [array get QTobj] {
+puts $progressInit
+		foreach {key handle} [array get QTobj] {
             puts "10M speed, $autoneg ,media: $media Run quickTest:$key"
-
-			QTP_GetResult $handle "10m"
+set progressInit [expr $progressInit + $qtProgressVolume]
+			QTP_GetResult $handle
+puts $progressInit	
         }
         
     }
@@ -1424,10 +1441,14 @@ puts "args:$args"
             
         }
         
+puts $progressInit
         foreach {key handle} [array get QTobj] {
             puts "100M speed, $autoneg ,media: $media Run quickTest:$key"
-
-			QTP_GetResult $handle "100m"
+puts "init:$progressInit qt volume:$qtProgressVolume"
+set progressInit [expr $progressInit + $qtProgressVolume]
+puts "new progress:$progressInit"
+			QTP_GetResult $handle
+puts $progressInit	
         }
     }
     if {$1g_enable} {
@@ -1438,82 +1459,78 @@ puts "args:$args"
             ixNet commit
             ixNet setA $pHandle/l1Config/ethernet -media $media
             ixNet commit
-			if { $autoneg == "Auto" } {
+            if { $autoneg == "Auto" } {
                 ixNet setA $pHandle/l1Config/ethernet -autoNegotiate True
                 ixNet setA $pHandle/l1Config/ethernet -speedAuto auto
                 ixNet commit
+            } elseif { $autoneg == "Half" } {
+                ixNet setA $pHandle/l1Config/ethernet -autoNegotiate False
+                ixNet setA $pHandle/l1Config/ethernet -speed speed1000
+                ixNet commit
+            } elseif { $autoneg == "Full" } {
+                ixNet setA $pHandle/l1Config/ethernet -autoNegotiate False
+                ixNet setA $pHandle/l1Config/ethernet -speed speed1000
+                ixNet commit
             }
-            # if { $autoneg == "Auto" } {
-                # ixNet setA $pHandle/l1Config/ethernet -autoNegotiate True
-                # ixNet setA $pHandle/l1Config/ethernet -speedAuto auto
-                # ixNet commit
-            # } elseif { $autoneg == "Half" } {
-                # ixNet setA $pHandle/l1Config/ethernet -autoNegotiate False
-                # ixNet setA $pHandle/l1Config/ethernet -speed speed1000
-                # ixNet commit
-            # } elseif { $autoneg == "Full" } {
-                # ixNet setA $pHandle/l1Config/ethernet -autoNegotiate False
-                # ixNet setA $pHandle/l1Config/ethernet -speed speed1000
-                # ixNet commit
-            # }
             
         }
         
+puts $progressInit
         foreach {key handle} [array get QTobj] {
             puts "1g speed, $autoneg ,media: $media Run quickTest:$key"
-
-			QTP_GetResult $handle "1g"
+set progressInit [expr $progressInit + $qtProgressVolume]
+			QTP_GetResult $handle
+puts $progressInit			
         }
     }
     if {$10g_enable} {
-         puts "10g  config"
+         puts "1g $autoneg $media config"
         set ix_type tenGigLan
         foreach pHandle $port_handle {        
             ixNet setA $pHandle -type $ix_type
             ixNet commit                               
         }
         
+puts $progressInit
         foreach {key handle} [array get QTobj] {
-            puts "10g speed Run quickTest:$key"
-
-			QTP_GetResult $handle "10g"
+            puts "10g speed, $autoneg ,media: $media Run quickTest:$key"
+set progressInit [expr $progressInit + $qtProgressVolume]
+			QTP_GetResult $handle
+puts $progressInit		
         }
     }
     if {$25g_enable} {
-	
-	    foreach {key handle} [array get QTobj] {
-            puts "25g speed Run quickTest:$key"
-           
-			QTP_GetResult $handle "25g"
-        }
         
     }
     if {$40g_enable} {
-        puts "40g config"
+         puts "40g $autoneg $media config"
         set ix_type fortyGigLan
         foreach pHandle $port_handle {        
             ixNet setA $pHandle -type $ix_type
             ixNet commit                               
         }
         
+puts $progressInit
         foreach {key handle} [array get QTobj] {
-            puts "40g speed Run quickTest:$key"
-           
-			QTP_GetResult $handle "40g"
+            puts "40g speed, $autoneg ,media: $media Run quickTest:$key"
+set progressInit [expr $progressInit + $qtProgressVolume]         
+			QTP_GetResult $handle
+puts $progressInit	
         }
     }
     if {$100g_enable} {
-         puts "100g  config"
+         puts "100g $autoneg $media config"
         set ix_type hundredGigLan
         foreach pHandle $port_handle {        
             ixNet setA $pHandle -type $ix_type
             ixNet commit                               
         }
-        
+puts $progressInit        
         foreach {key handle} [array get QTobj] {
-            puts "100g speed, Run quickTest:$key"
-
-			QTP_GetResult $handle "100g"
+            puts "100g speed, $autoneg ,media: $media Run quickTest:$key"
+set progressInit [expr $progressInit + $qtProgressVolume] 
+			QTP_GetResult $handle
+puts $progressInit	
         }
     }
 }
