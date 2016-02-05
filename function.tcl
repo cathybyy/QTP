@@ -1067,7 +1067,7 @@ proc QTP_GetResult {qtHandle speed} {
 		puts "Resultpath: $newResPath"
 		
 		set  resfile [ open $resfilepath a+ ]
-		puts $resfile "$qtname Test Restuls:"
+		puts $resfile "$speed:$qtname Test Restuls:"
 		puts $resfile $rpattern
 		flush $resfile
 		close $resfile
