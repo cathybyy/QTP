@@ -1,6 +1,6 @@
 # Copyright (c) Ixia technologies 2015-2016, Inc.
 
-# Release Version 1.5
+# Release Version 1.6
 #===============================================================================
 # Change made
 # Version 1.0 
@@ -293,6 +293,7 @@ puts "|QTP_PortListSet|"
 	if {$newport_list == [ixNet getNull] } {
 		puts "The real card is not exist!"
 		puts "NAK"
+		after 3000
 	} else {
 
 		foreach value $newport_list {
@@ -507,8 +508,9 @@ puts "latency: $latency_type"
 						}
 					}
 				} else {
-					puts "The number of ports should be even!"
-					return NAC
+					puts "Rfc2544 pair mode,the number of ports should be even!"
+					puts "NAK"
+					after 3000
 				}
 			}
 			
@@ -792,26 +794,27 @@ puts "HOL: $HOL"
 					set edp [ixNet remapIds $edp]
 					if {[expr [llength $port_handle] % 2] == 0} {
 						set p1 [lrange $port_handle 0 [expr [llength $port_handle] / 2 -1]]
-						set p2 [lrange $port_handle [expr [llength $port_handle] / 2 -1] end]
+						set p2 [lrange $port_handle [expr [llength $port_handle] / 2] end]
 					} else {
-						puts "The number of ports should be even!"
-						return NAC
+						puts "Rfc2889 backbone: The number of ports should be even!"
+                        puts "NAK"						
+						after 3000
 					}
 					set src ""
 					set dst ""
 						if {$protocol == "MAC"} {
 							set src [lrange $lan 0 [expr [llength $port_handle] / 2 -1]]
-							set dst [lrange $lan [expr [llength $port_handle] / 2 -1] end]						
+							set dst [lrange $lan [expr [llength $port_handle] / 2] end]						
 						} else {
 							set src [lrange $interface 0 [expr [llength $port_handle] / 2 -1]]
-							set dst [lrange $interface [expr [llength $port_handle] / 2 -1] end]
+							set dst [lrange $interface [expr [llength $port_handle] / 2] end]
 						}	
 					foreach p $p1 {
-						ixNet setA $light_map/source:[lsearch $p1 $p] -portId $p
+						ixNet setA $light_map/source:[expr [lsearch $p1 $p] + 1] -portId $p
 						ixNet commit
 					}
 					foreach p $p2 {
-						ixNet setA $light_map/destination:[lsearch $p2 $p] -portId $p
+						ixNet setA $light_map/destination:[expr [lsearch $p2 $p] + 1] -portId $p
 						ixNet commit
 					}
 					ixNet setMultiAttribute $edp \
@@ -1339,7 +1342,22 @@ puts "args:$args"
     }    
 	puts "Reserve real port $port_list"
     set port_handle [QTP_PortListSet  -port_list $port_list]
-puts 30    
+	after 10000
+puts 30  
+    puts "Check ports state"
+    foreach pHandle $port_handle {
+	    set pState [ixNet getA $pHandle -state]
+		if { $pState != "up" } {
+		    after 5000
+			set pState [ixNet getA $pHandle -state]
+			if { $pState != "up" } {
+				puts "port state is not up: $pHandle state $pState"
+				puts "NAK"
+				after 3000
+			}
+		}
+    }	
+	after 1000
     puts "Config quicktest list $quicktest"
     array set QTobj [QTP_NewQTobj -quicktest $quicktest]
     # puts "Quick Test EndPointsSet"
