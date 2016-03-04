@@ -1,6 +1,6 @@
 # Copyright (c) Ixia technologies 2015-2016, Inc.
-
-# Release Version 1.6
+# Author: Tim
+# Release Version 1.7
 #===============================================================================
 # Change made
 # Version 1.0 
@@ -17,7 +17,18 @@ set tDir [file dirname $currDir]
 # set resfilepath "$resPath/QTP.log"
 # set resfile [open $resfilepath a+]
 # close $resfile
-	
+
+
+#=========================================================================================
+#process name:		GetRealPort
+#function:			Check whether the chassis & card % ports exist or not, if exist, then check
+#					whether the ports can be reserved or not, if not, do cleanowner with the ports.
+#args description:	port_list: the port list used in the test.
+#return value:		if chassis and card exist, return the new port list in format 
+#					$chassis/card:$card/port:$port, else return "ixNet getNull".
+#author:			Tim
+#modification record:
+#=========================================================================================
 proc GetRealPort { port_list } {
 	set result ""
 set initProgress 10
@@ -94,7 +105,17 @@ set initProgress [expr $initProgress + $portProgressVolume ]
 	return $result
 }
 
+#=========================================================================================
+#process name:		IncrMacAddr
+#function:			increase mac1 with step mac2.
+#args description:	mac1: the mac address need to increase, format: XX:XX:XX:XX:XX:XX
+#					mac2: step mac, default value: 00:00:00:00:01:00
+#return value:		mac address after increasing. 
+#author:			Tim
+#modification record:
+#=========================================================================================
 proc IncrMacAddr { mac1 { mac2 00:00:00:00:01:00 } } {
+
 	set mac1List [ split $mac1 ":" ]
 	set mac2List [ split $mac2 ":" ]
 	set macLen [ llength $mac1List ]
@@ -129,7 +150,17 @@ proc IncrMacAddr { mac1 { mac2 00:00:00:00:01:00 } } {
 	return [ string range $macResult 1 end ]
 }
 
+#=========================================================================================
+#process name:		AddProtocol
+#function:			add protocol for each port base on the type, if protocol is mac, then add
+#					lan for each port, if prototol if IPv4 or IPv6, add interface for each port.
+#args description:	protocol: type of protocol, "MAC" "IPv4" or "IPv6"
+#return value:		return the handle list of the protocol 
+#author:			Tim
+#modification record:
+#=========================================================================================
 proc AddProtocol {protocol} {
+
 	global mac
 	set root [ixNet getRoot]
 	set port_handle [ixNet getL $root vport]
@@ -175,6 +206,19 @@ proc AddProtocol {protocol} {
 	}
 }
 
+#=========================================================================================
+#process name:		AddTrafficItem
+#function:			add trafficItem, set name and type of them.
+#args description:	
+#					element: handle list of every QT
+#					protocol: type of protocol, "ethernetVlan" "ipv4" or "ipv6"
+#					lan: handle list of protocol(with protocol type "mac")
+#					interface: handle list of protocol(with protocol type "ipv4" or "ipv6")
+#
+#return value:		return handld of the trafficItem.
+#author:			Tim
+#modification record:
+#=========================================================================================
 proc AddTrafficItem {element protocol lan interface} {
 	set root [ixNet getRoot]
 	
@@ -198,6 +242,16 @@ proc AddTrafficItem {element protocol lan interface} {
 	return $traffic
 }
 
+#=========================================================================================
+#process name:		QTP_ChasInfo
+#function:			get the chassis information.
+#args description:	chassis: the ip address of the chassis.
+#return value:		if can't connect to the chassis, puts error message:
+#						"<error>|msg=fail to connect to chassis"
+#					if success, return the information of the chassis.
+#author:			Tim
+#modification record:
+#=========================================================================================
 proc QTP_ChasInfo { chassis } {
     if { [ catch {
 
@@ -276,6 +330,17 @@ proc QTP_ChasInfo { chassis } {
 
 }
 
+#=========================================================================================
+#process name:		QTP_PortListSet
+#function:			set vports and connect them to the real ports.
+#args description:	
+#					port_list: the port list used in the test.
+#
+#return value:		if success, return handld list of the vports.
+#					if the real card is not exist, puts error information.
+#author:			Tim
+#modification record:
+#=========================================================================================
 proc QTP_PortListSet {args} {
 puts "|QTP_PortListSet|"
 	#set variables
@@ -313,6 +378,16 @@ puts "|QTP_PortListSet|"
 	}
 }	
 
+#=========================================================================================
+#process name:		QTP_NewQTobj
+#function:			add trafficItem, set name and type of them.
+#args description:	
+#					quicktest: the name list of choosed quicktest.
+#
+#return value:		return the handle list of every quicktest.
+#author:			Tim
+#modification record:
+#=========================================================================================
 proc QTP_NewQTobj {args} {
 	foreach {key value} $args {
 		switch -exact $key {
@@ -340,6 +415,21 @@ proc QTP_NewQTobj {args} {
 	return [array get obj]
 }
 
+#=========================================================================================
+#process name:		QTP_EndPointSet
+#function:			set the endpoint for every quicktest.
+#args description:	
+#					quicktest: the name list of choosed quicktest.
+#					tra_mode: rfc2544 traffic mode, "pair" or "round".
+#					port_list: list of ports used in the test.
+#					protocol: type of protocol, "MAC" "IPv4" or "IPv6".
+#					HOL: rfc2889 Congestion Control parameter, "oneGroup" or "manyGroup".
+#					latency_type: rfc2544 Throughput parameter, "CutThrough" or "StoreAndForward".
+#
+#return value:		none.
+#author:			Tim
+#modification record:
+#=========================================================================================
 proc QTP_EndPointSet {args} {
 	#set variables
 	foreach {key value} $args {
@@ -917,7 +1007,29 @@ puts "HOL: $HOL"
 	}					
 }
 	
-
+#=========================================================================================
+#process name:		QTP_TrafficSet
+#function:			set traffics.
+#args description:	
+#					element: the handle list of the quicktest.
+#					protocol: the type of protocol, "MAC" "IPv4" or "IPv6".
+#					ip_addr_start: the starting ip address.
+#					ip_addr_step: the ip address' increasing step.
+#					gw_addr_start: the starting gateway's ip address.
+#					gw_addr_step: the gateway ip address' increasing step.
+#					pfx_len: the prefix length of the ip address.
+#					addr_count: the number of the ip address.
+#					frame_size: the size of the frame.
+#					lng_rate: the learning frequency.
+#					lng_frames: the learning number of frames.
+#					lng_mac_only: enable LearnSendMacOnly or not.
+#					port_step: the ip address increase step by ports.
+#					test_duration: the duration of each test trail.
+#
+#return value:		none.
+#author:			Tim
+#modification record:
+#=========================================================================================
 proc QTP_TrafficSet {args} {
 	set addr_count 1
 	set lng_rate 100
@@ -1035,7 +1147,17 @@ proc QTP_TrafficSet {args} {
 	ixNet exec apply $element
 }
 
-
+#=========================================================================================
+#process name:		QTP_GetResult
+#function:			run the QuickTest and save the results.
+#args description:	
+#					qtHandle:  the handle of the quicktest.
+#                   speed:     the speed of the test ports
+#
+#return value:		
+#author:			Tim
+#modification record:
+#=========================================================================================
 proc QTP_GetResult {qtHandle speed} {
     global resfilepath
 	global resPath
@@ -1078,7 +1200,63 @@ proc QTP_GetResult {qtHandle speed} {
 	}
 			
 }
-	
+
+#=========================================================================================
+#process name:		StartQT
+#function:			config, run, save results of the quicktestlist, the main process
+#args description:	
+#					port_list: the list of ports used in the test.
+#					2544_throughput_enable: whether test rfc2544 throughput or not, value "1" or "0"
+#					2544_latency_enable: whether test rfc2544 latency or not, value "1" or "0"
+#					2544_frameloss_enable: whether test rfc2544 frameLoss or not, value "1" or "0"
+#					2544_b2b_enable: whether test rfc2544 backToBack or not, value "1" or "0"
+#					2889_fully_enable: whether test rfc2889 fullyMeshed or not, value "1" or "0"
+#					2889_hol_enable: whether test rfc2889 congestionControl or not, value "1" or "0"
+#					2889_many2one_enable: whether test rfc2889 manyToOne or not, value "1" or "0"
+#					2889_one2many_enable: whether test rfc2889 oneToMany or not, value "1" or "0"
+#					2889_broadcast_enable: whether test rfc2889 broadcast or not, value "1" or "0"
+#					2889_backbone_enable: whether test rfc2889 partiallyMeshed or not, value "1" or "0"
+#					latency_type: rfc2544 Throughput parameter, "CutThrough" or "StoreAndForward"
+#					hol_type: rfc2889 Congestion Control parameter, "oneGroup" or "manyGroup"
+#					pair_enable: rfc2544 parameter, if value is 1, set the traffic mode to "pair"
+#					round_enable: rfc2544 parameter, if value is 1, set the traffic mode to "round"
+#					mac_enable: if value is 1, set the protocol to "MAC"
+#					ip_enable: if value is 1, set the protocol to "IPv4"
+#					ipv6_enable: if value is 1, set the protocol to "IPv6"
+#					ip_addr_start: the starting ip address
+#					ip_addr_step: the ip address' increasing step
+#					gw_addr_start: the starting gateway's ip address
+#					gw_addr_step: the gateway ip address' increasing step
+#					pfx_len: the prefix length of the ip address
+#					port_step: the ip address increase step by ports
+#					fs64_enable: if value is 1, add the framesize list with 64
+#					fs128_enable: if value is 1, add the framesize list with 128
+#					fs256_enable: if value is 1, add the framesize list with 256
+#					fs512_enable: if value is 1, add the framesize list with 512
+#					fs590_enable: if value is 1, add the framesize list with 590
+#					fs1024_enable: if value is 1, add the framesize list with 1024
+#					fs1280_enable: if value is 1, add the framesize list with 1280
+#					fs1518_enable: if value is 1, add the framesize list with 1518
+#					fs_jumbo_enable: if value is 1, using jumbo frame during the test
+#					jumbo_value: the framesize of the jumbo frame
+#					test_duration: the time duration of every test trail
+#					lng_rate: the learning frequency
+#					frames_per_addr: the learning number of frames
+#					send_mac_only_enable: if value is 1, enable LearnSendMacOnly
+#					10m_enable: if value is 1, add the speed list with 10m
+#					100m_enable: if value is 1, add the speed list with 100m
+#					1g_enable: if value is 1, add the speed list with 1g
+#					media: the media type, "fiber" or "copper"
+#					autoneg: whether autoneg or not, "1" or "0"
+#					10g_enable: if value is 1, add the speed list with 10g
+#					25g_enable: if value is 1, add the speed list with 25g
+#					40g_enable: if value is 1, add the speed list with 40g
+#					100g_enable: if value is 1, add the speed list with 100g
+#
+#return value:		none
+#author:			Tim
+#modification record:
+#=========================================================================================	
 proc StartQT { args } {
     set quicktest ""
     set frame_size ""
@@ -1559,6 +1737,16 @@ puts $progressInit
     }
 }
 
+#=========================================================================================
+#process name:		StopQT
+#function:			stop the test.
+#args description:	
+#					none.
+#
+#return value:		none.
+#author:			Tim
+#modification record:
+#=========================================================================================
 proc StopQT {} {
     puts "stop the quick test"
 	
