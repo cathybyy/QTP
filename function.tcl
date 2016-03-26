@@ -1545,13 +1545,20 @@ puts "args:$args"
                 set fs_jumbo_enable $value
             }
             -jumbo_value {
-                set jumbo_value $value
+                
+				if {[ string is integer $value ]} {
+				    set jumbo_value $value
+				} else {
+				    puts "Error:jumbo_value format error:jumbo_value:$jumbo_value, should be integer"
+			        puts "NAK"
+			        after 3000
+				}
             }
             -test_duration {
 			    if {[ string is integer $value ]} {
 				    set test_duration $value
 				} else {
-				    puts "Error:test_duration format error:test_duration:$test_duration"
+				    puts "Error:test_duration format error:test_duration:$test_duration , should be integer"
 			        puts "NAK"
 			        after 3000
 				}
@@ -1561,7 +1568,7 @@ puts "args:$args"
 				if {[ string is integer $value ]} {
 				    set lng_rate $value
 				} else {
-				    puts "Error:lng_rate format error:lng_rate:$lng_rate"
+				    puts "Error:lng_rate format error:lng_rate:$lng_rate , should be integer"
 			        puts "NAK"
 			        after 3000
 				}
@@ -1571,7 +1578,7 @@ puts "args:$args"
 				if {[ string is integer $value ]} {
 				    set frames_per_addr $value
 				} else {
-				    puts "Error:frames_per_addr format error:frames_per_addr:$frames_per_addr"
+				    puts "Error:frames_per_addr format error:frames_per_addr:$frames_per_addr , should be integer"
 			        puts "NAK"
 			        after 3000
 				}
