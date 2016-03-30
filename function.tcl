@@ -19,6 +19,64 @@ set tDir [file dirname $currDir]
 # close $resfile
 
 
+# IsIPv4Address --
+#   Error codes : TRUE(1)     success
+#                 FALSE (0)    no match
+#   Error condition :
+#               1.Doesnot match A.B.C.D
+#               2.{ A B C D }'s element is not an Integer between 0 and 255
+proc IsIPv4Address { value } {
+    puts "Judgement: ipv4 address format"
+    if { [ regexp -nocase {(\d+)\.(\d+)\.(\d+)\.(\d+)} $value ip a b c d ] } {
+        puts "Is Ipv4 address..."
+        if { ( $a > 255 ) || ( $b > 255 ) || ( $c > 255 ) || ( $d > 255 ) } {
+            return 0
+        }
+        return 1
+    } else {
+        puts "Invalid ipv4 format"
+        return 0
+    }
+}
+
+# IsIPv6Address --
+#   Error codes : TRUE(1)     success
+#                 FALSE (0)    no match
+#   Error condition :
+#               1.Doesnot match A:B:C:D:E:F:G:H
+#               2.{ A B C D }'s element is not an sign which in the set [0-9a-f]   
+proc IsIPv6Address { value } {
+    set flag 1
+    set hexList [ split $value ":" ]
+    if { [ llength $hexList ] == 8 } {
+        foreach hex $hexList {
+            if { [ IsHex $hex ] == 0 } {
+                set flag 0
+                break
+            }
+        }
+    } else {
+        set index [ string first "::" $value ]
+        if { $index < 0 } {
+            return 0
+        }
+      
+        set hexList [ split $value ":" ]
+        foreach hex $hexList {
+			if { $hex == "" } {
+				continue
+			}
+			if { [ IsHex $hex ] == 0 } {
+				set flag 0
+				break
+			}
+        }
+
+    }
+    return $flag
+
+}
+
 #=========================================================================================
 #process name:		GetRealPort
 #function:			Check whether the chassis & card % ports exist or not, if exist, then check
@@ -1247,7 +1305,7 @@ proc QTP_GetResult {qtHandle speed} {
 #					100m_enable: if value is 1, add the speed list with 100m
 #					1g_enable: if value is 1, add the speed list with 1g
 #					media: the media type, "fiber" or "copper"
-#					autoneg: whether autoneg or not, "1" or "0"
+#					autoneg: whether autoneg or not, "Auto" or "Half" or "Full"
 #					10g_enable: if value is 1, add the speed list with 10g
 #					25g_enable: if value is 1, add the speed list with 25g
 #					40g_enable: if value is 1, add the speed list with 40g
@@ -1273,6 +1331,14 @@ puts "args:$args"
 		switch -exact $key {
 			-port_list {
 				set port_list $value
+				foreach tempport $port_list {
+				    if { [regexp {^([0-9]+.[0-9]+.[0-9]+.[0-9]+:[0-9]+:[0-9]+)$} $tempport] } {
+					} else {
+					    puts "ERROR: -port_list format is not right, the value is $value"
+						puts "NAK"
+						after 3000
+					}
+				}
 			}
             -2544_throughput_enable {
                 if { $value == 1 && [lsearch $quicktest "rfc2544throughput"] == -1 } {
@@ -1325,10 +1391,24 @@ puts "args:$args"
                 }
             }
             -latency_type {
-                set latency_type $value
+			    if { $value == "CutThrough" || $value == "StoreAndForward" } {
+				    set latency_type $value
+				} else {
+				    puts "ERROR: -latency_type format is not right, the value is $value, should be CutThrough|StoreAndForward"
+					puts "NAK"
+					after 3000
+				}
+               
             }
             -hol_type {
-                set hol_type $value
+			    if { $value == "oneGroup" || $value == "manyGroup" } {
+				    set hol_type $value
+				} else {
+				    puts "ERROR: -hol_type format is not right, the value is $value, should be oneGroup|manyGroup"
+					puts "NAK"
+					after 3000
+				}
+                
             }
             -pair_enable {
                 if { $value == 1 } {
@@ -1465,16 +1545,43 @@ puts "args:$args"
                 set fs_jumbo_enable $value
             }
             -jumbo_value {
-                set jumbo_value $value
+                
+				if {[ string is integer $value ]} {
+				    set jumbo_value $value
+				} else {
+				    puts "Error:jumbo_value format error:jumbo_value:$jumbo_value, should be integer"
+			        puts "NAK"
+			        after 3000
+				}
             }
             -test_duration {
-                set test_duration $value
+			    if {[ string is integer $value ]} {
+				    set test_duration $value
+				} else {
+				    puts "Error:test_duration format error:test_duration:$test_duration , should be integer"
+			        puts "NAK"
+			        after 3000
+				}
             }
             -lng_rate {
-                set lng_rate $value
+             
+				if {[ string is integer $value ]} {
+				    set lng_rate $value
+				} else {
+				    puts "Error:lng_rate format error:lng_rate:$lng_rate , should be integer"
+			        puts "NAK"
+			        after 3000
+				}
             }
             -frames_per_addr {
-                set frames_per_addr $value
+              
+				if {[ string is integer $value ]} {
+				    set frames_per_addr $value
+				} else {
+				    puts "Error:frames_per_addr format error:frames_per_addr:$frames_per_addr , should be integer"
+			        puts "NAK"
+			        after 3000
+				}
             }
             -send_mac_only_enable {
                 set send_mac_only_enable $value
@@ -1490,9 +1597,21 @@ puts "args:$args"
             }
             -media {
                set media [string tolower $value]
+			   if { $media == "fiber" || $medai ==  "copper" } {
+			   } else {
+			       puts "Error:media format error: media:$media, should be fiber | copper"
+			       puts "NAK"
+			       after 3000
+			   }
             }
             -autoneg {
                set autoneg $value
+			   if { $autoneg == "Auto" || $autoneg ==  "Half" || $autoneg ==  "Full" } {
+			   } else {
+			       puts "Error:autoneg format error: autoneg:$autoneg, should be Auto | Half | Full"
+			       puts "NAK"
+			       after 3000
+			   }
             }
             -10g_enable {
                set 10g_enable $value
@@ -1517,7 +1636,43 @@ puts "args:$args"
 		} else {
 			set frame_size "${frame_size},${jumbo_value}"
 		}		
-    }    
+    }  
+
+    if { $protocol == "IPv4" } {
+	    if { [IsIPv4Address $ip_addr_start ] && [IsIPv4Address $ip_addr_step ] \
+          && [IsIPv4Address $gw_addr_start ] && [IsIPv4Address $gw_addr_step ] \
+		  && [IsIPv4Address $port_step ] } {
+		} else {
+		    puts "Error:ipv4 addrss format error: ip_addr_start:$ip_addr_start;ip_addr_step:$ip_addr_step"
+			puts "gw_addr_start:$gw_addr_start;gw_addr_step:$gw_addr_step;port_step:$port_step"
+			puts "NAK"
+			after 3000
+		}
+		if {  [ string is integer $pfx_len ] && 0<=$pfx_len && $pfx_len <= 32  } {
+		} else {
+		    puts "Error:ipv4 pfx_len error: pfx_len:$pfx_len"
+			puts "NAK"
+			after 3000
+		}
+	} elseif { $protocol == "IPv6" } {
+	    if { [IsIPv6Address $ip_addr_start ] && [IsIPv6Address $ip_addr_step ] \
+          && [IsIPv6Address $gw_addr_start ] && [IsIPv6Address $gw_addr_step ] \
+		  && [IsIPv6Address $port_step ] } {
+		} else {
+		    puts "Error:ipv6 addrss format error: ip_addr_start:$ip_addr_start;ip_addr_step:$ip_addr_step"
+			puts "gw_addr_start:$gw_addr_start;gw_addr_step:$gw_addr_step;port_step:$port_step"
+			puts "NAK"
+			after 3000
+		}
+		
+		if { [ string is integer $pfx_len ] && 0<=$pfx_len && $pfx_len <= 128  } {
+		} else {
+		    puts "Error:ipv6 pfx_len error: pfx_len:$pfx_len"
+			puts "NAK"
+			after 3000
+		}
+	}	
+	
 	puts "Reserve real port $port_list"
     set port_handle [QTP_PortListSet  -port_list $port_list]
 	after 10000
@@ -1529,13 +1684,18 @@ puts 30
 		    after 5000
 			set pState [ixNet getA $pHandle -state]
 			if { $pState != "up" } {
-				puts "port state is not up: $pHandle state $pState"
+				puts "Error:port state is not up: $pHandle state $pState"
 				puts "NAK"
 				after 3000
 			}
 		}
     }	
 	after 1000
+	if { $quicktest == "" } {
+	    puts "Error:No quickTest is choosed"
+		puts "NAK"
+		after 3000
+	}
     puts "Config quicktest list $quicktest"
     array set QTobj [QTP_NewQTobj -quicktest $quicktest]
     # puts "Quick Test EndPointsSet"
