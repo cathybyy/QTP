@@ -1,11 +1,13 @@
 # Copyright (c) Ixia technologies 2015-2016, Inc.
 # Author: Tim
-# Release Version 1.7
+# Release Version 1.8
 #===============================================================================
 # Change made
 # Version 1.0 
 #       1. Create    Jan. 28 2016
 #       2. modify add multi chas
+# Version 1.8
+#		1. Add abnormal value judgement
 
 set mac 00:d0:b0:11:01:00
 set currDir [file dirname [info script]]
