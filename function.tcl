@@ -331,7 +331,7 @@ proc QTP_ChasInfo { chassis } {
 			set chasId [ chassis cget -id ]
 			set osVersion [ chassis cget -ixServerVersion ]
 			set maxCardNumber [ chassis cget -maxCardCount ]
-
+          
 			set cardNumber 0
 			for { set cIndex 1 } { $cIndex <= $maxCardNumber } { incr cIndex } {
 				set result [card get $chasId $cIndex]
@@ -345,31 +345,13 @@ proc QTP_ChasInfo { chassis } {
 				# 10/100/1000 LSM XMV12	
 				set portCnt [card cget -portCount]
 				
+				
 				puts "<card>|chassis=${chassis}|sn=${sn}|type=${typeName}|portCnt=${portCnt}|card=${cIndex}"
 			}
 
 			set chasSn "NA"
-
-			spawn plink -telnet $chassis
-			expect >
-			if { [ catch {
-				for { set index 0 } { $index < 10 } { incr index } {
-	puts $index.1:[ clock seconds ]
-					send "parray env USERDOMAIN \r"
-					expect > 
-	puts $index.2:[ clock seconds ]				
-					# env(USERDOMAIN) = XM2-0211907
-					set equalIndex  [ lsearch $expect_out(buffer) "=" ]
-					if { $equalIndex >= 0 } {
-						set chasSn [ lindex $expect_out(buffer) [ expr $equalIndex + 1 ] ]
-						break
-					} 
-	puts $index.3:[ clock seconds ]	
-					# after 1000
-				}
-			} err ] } { 
-				puts "<error>|msg=$err"
-			}
+            set chasSn [chassis cget -serialNumber]
+			
 			
 			puts "<chassis>|chassis=${chassis}|sn=${chasSn}|os=${osVersion}|cardCnt=${cardNumber}"
 		}
