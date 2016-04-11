@@ -20,15 +20,15 @@ if { [ catch {
 		chassis get $chassis
 		set chasId [ chassis cget -id ]		
 		set chasSn [chassis cget -serialNumber]		
-		#set out "$chasSn"
+		set out "$chasSn"
 		
-		set CHASSNLIST { XM2-P1022662 }
-		if { [lsearch $CHASSNLIST $chasSn] == -1 } {
-		    set success 0
-			puts "<error>|msg=$chassis,SN:$chasSn is not in the legal Chassis SN"
-		    puts "NAK"
+		# set CHASSNLIST { XM2-P1022662 }
+		# if { [lsearch $CHASSNLIST $chasSn] == -1 } {
+		    # set success 0
+			# puts "<error>|msg=$chassis,SN:$chasSn is not in the legal Chassis SN"
+		    # puts "NAK"
 			
-		}
+		# }
 		
 	}
 
